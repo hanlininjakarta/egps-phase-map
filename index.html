@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map Automation — Phase Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  :root{
+    --navy:#0B2545; --panel:#0f2f52; --rule:rgba(255,255,255,.14);
+    --explore:#46B450; --plan:#E83E8C; --impl:#2C8FE0; --nodata:#C2CBD4;
+    --txt:#eaf2fb; --muted:#9fb4cb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#06192f;color:var(--txt);}
+  .app{display:grid;grid-template-columns:1fr 360px;height:100vh;}
+  .graphic{background:var(--navy);overflow:auto;}
+  #board{width:100%;height:auto;display:block;}
+  .country{stroke:#06192f;stroke-width:.4px;cursor:pointer;transition:fill .15s;}
+  .country:hover{stroke:#fff;stroke-width:1px;}
+  #tip{position:fixed;display:none;pointer-events:none;background:#06192f;border:1px solid var(--rule);
+    border-radius:7px;padding:6px 10px;font-size:12.5px;z-index:50;white-space:nowrap;}
+  .panel{background:var(--panel);border-left:1px solid var(--rule);display:flex;flex-direction:column;overflow-y:auto;}
+  .phead{padding:15px 18px;border-bottom:1px solid var(--rule);}
+  .phead h1{font-size:15px;font-weight:700;}
+  .phead p{font-size:11.5px;color:var(--muted);margin-top:3px;}
+  .sec{padding:13px 18px;border-bottom:1px solid var(--rule);}
+  .sec h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:9px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:9px;}
+  .field label{font-size:11px;color:var(--muted);}
+  input,select{background:#0a2542;border:1px solid var(--rule);border-radius:7px;color:var(--txt);
+    font-size:13px;padding:8px 10px;font-family:inherit;width:100%;}
+  input:focus,select:focus{outline:none;border-color:var(--impl);}
+  .phasebtns{display:flex;gap:6px;}
+  .pbtn{flex:1;border:1px solid var(--rule);background:#0a2542;border-radius:7px;color:var(--txt);
+    font-size:11.5px;font-weight:600;padding:8px 4px;cursor:pointer;text-align:center;}
+  .pbtn[data-p=exploratory].on{background:var(--explore);border-color:var(--explore);color:#06192f;}
+  .pbtn[data-p=planning].on{background:var(--plan);border-color:var(--plan);color:#fff;}
+  .pbtn[data-p=implementation].on{background:var(--impl);border-color:var(--impl);color:#06192f;}
+  .btn{background:var(--impl);border:none;border-radius:7px;color:#fff;font-size:13px;font-weight:700;
+    padding:9px 14px;cursor:pointer;width:100%;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:transparent;border:1px solid var(--rule);color:var(--txt);font-size:12px;padding:8px 10px;}
+  .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .hint{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.5;}
+  .manage{flex:1;overflow-y:auto;padding:6px 18px 18px;}
+  .mitem{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12.5px;}
+  .mdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .mitem .x{margin-left:auto;cursor:pointer;color:var(--muted);font-weight:700;}
+  .mitem .x:hover{color:#ff6b6b;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="graphic">
+    <svg id="board" viewBox="0 0 1380 620" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <div class="panel">
+    <div class="phead">
+      <h1>Map Automation · Phase Tracker</h1>
+      <p>Add a country &amp; phase → auto-colours the map, labels the region, and updates the summary table.</p>
+    </div>
+
+    <div class="sec">
+      <h2>Add / update a country</h2>
+      <div class="field">
+        <label>Country</label>
+        <input id="cinput" list="clist" placeholder="Type a country name…" autocomplete="off">
+        <datalist id="clist"></datalist>
+      </div>
+      <div class="field">
+        <label>Phase</label>
+        <div class="phasebtns">
+          <button class="pbtn" data-p="exploratory">Exploratory</button>
+          <button class="pbtn" data-p="planning">Planning</button>
+          <button class="pbtn" data-p="implementation">Implementation</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Region (auto-detected · editable)</label>
+        <select id="region"></select>
+      </div>
+      <button class="btn" id="addbtn">Add to map</button>
+      <div class="hint">Or just <b>click a country on the map</b>: None → Exploratory → Planning → Implementation → None.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Export &amp; data</h2>
+      <div class="toolbar">
+        <button class="btn ghost" id="pngbtn">Download PNG</button>
+        <button class="btn ghost" id="expbtn">Export JSON</button>
+        <button class="btn ghost" id="impbtn">Import JSON</button>
+        <button class="btn ghost" id="basebtn">Reset baseline</button>
+        <button class="btn ghost" id="clrbtn">Clear all</button>
+      </div>
+      <input type="file" id="impfile" accept="application/json" style="display:none">
+    </div>
+
+    <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:13px 18px 0;">Countries (<span id="ccount">0</span>) · click ✕ to remove</h2>
+    <div class="manage" id="manage"></div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+// ── phases ──
+const PHASES=['exploratory','planning','implementation'];
+const PCOLOR={exploratory:'#46B450',planning:'#E83E8C',implementation:'#2C8FE0'};
+const PLABEL={exploratory:'Exploratory',planning:'Planning',implementation:'Implementation'};
+const NODATA='#C2CBD4';
+const CYCLE={null:'exploratory',exploratory:'planning',planning:'implementation',implementation:null};
+
+// ── Taiwan shown as part of China (World Bank convention) ──
+const MERGE={'Taiwan':'China'};
+const eff=n=>MERGE[n]||n;
+
+// ── region order (table) ──
+const REGION_ORDER=['West Africa','Southern & Eastern Africa','Middle East & North Africa','Europe',
+  'Central Asia','South Asia','East Asia & Pacific','Latin America & Caribbean','North America','Other'];
+
+// ── region call-outs: [text, labelLon, labelLat, targetLon, targetLat] ──
+// label sits in open ocean; a thin leader line points to the region (like the original).
+// label position = fixed SCREEN coords (in the navy margin); target = [lon,lat] on the region.
+const MAP_LABELS=[
+  ['Africa West',               405, 250,  -5, 11],   // Atlantic
+  ['Europe',                    518,  72,  14, 50],   // top margin
+  ['Central Asia',              640,  72,  62, 45],   // top margin
+  ['Mongolia',                  742,  72, 103, 47],   // top margin
+  ['South Asia',                660, 360,  80, 23],   // Indian Ocean
+  ['ASEAN',                     735, 408, 114,  2],   // Indian Ocean
+  ['East Asia & Pacific',       858, 388, 138,  6],   // Pacific
+  ['Southern & Eastern Africa', 575, 478,  28,-16],   // Southern Ocean / bottom margin
+  ['Latin America',             255, 448, -62,-13],   // SE Pacific
+];
+
+// ── country → region ──
+const REGION_RAW={
+ 'West Africa':['Côte d\'Ivoire','Ivory Coast','Guinea','Ghana','Sierra Leone','Liberia','Senegal','Mali','Nigeria','Burkina Faso','Benin','Togo','Niger','Mauritania','Guinea-Bissau','Gambia','Cabo Verde'],
+ 'Southern & Eastern Africa':['Zimbabwe','Namibia','Botswana','Madagascar','Mozambique','Angola','Zambia','Burundi','Dem. Rep. Congo','Democratic Republic of the Congo','Malawi','Tanzania','South Africa','Kenya','Uganda','Rwanda','Ethiopia','Eswatini','Lesotho','Somalia','South Sudan','Sudan','Eritrea','Djibouti','Comoros','Mauritius','Congo','Central African Rep.','Cameroon','Gabon','Chad'],
+ 'Middle East & North Africa':['Morocco','Algeria','Tunisia','Libya','Egypt','Saudi Arabia','Iran','Iraq','Jordan','Lebanon','Syria','Israel','Yemen','Oman','United Arab Emirates','Qatar','Kuwait','Bahrain'],
+ 'Europe':['Ukraine','Turkey','Serbia','Bosnia and Herz.','Albania','Macedonia','North Macedonia','Montenegro','Kosovo','Croatia','Moldova','Georgia','Armenia','Azerbaijan','Poland','Romania','Bulgaria','Greece'],
+ 'Central Asia':['Uzbekistan','Turkmenistan','Kazakhstan','Kyrgyzstan','Tajikistan'],
+ 'South Asia':['India','Pakistan','Bangladesh','Sri Lanka','Nepal','Bhutan','Afghanistan','Maldives'],
+ 'East Asia & Pacific':['Mongolia','Indonesia','Malaysia','Philippines','Thailand','Vietnam','Papua New Guinea','Solomon Is.','Solomon Islands','China','Myanmar','Cambodia','Laos','Fiji','Vanuatu','Timor-Leste','Brunei','New Zealand','Australia','Japan','South Korea','North Korea'],
+ 'Latin America & Caribbean':['Mexico','Bolivia','Brazil','Argentina','Peru','Chile','Colombia','Ecuador','Venezuela','Paraguay','Uruguay','Guyana','Suriname','Panama','Costa Rica','Nicaragua','Honduras','Guatemala','El Salvador','Cuba','Dominican Rep.','Haiti','Jamaica','Trinidad and Tobago'],
+ 'North America':['United States of America','United States','Canada'],
+};
+function norm(s){return (s||'').toLowerCase().replace(/[.\-']/g,'').replace(/&/g,'and').replace(/\s+/g,' ').trim();}
+const REGION_OF={};
+for(const [reg,arr] of Object.entries(REGION_RAW)) arr.forEach(c=>REGION_OF[norm(c)]=reg);
+function regionFor(name){return REGION_OF[norm(name)]||'Other';}
+
+// ── BASELINE scenario (from the original map) — loads on first run; "Reset baseline" restores it ──
+const BASELINE=[
+  // Exploratory
+  ['Zimbabwe','exploratory'],['Namibia','exploratory'],['Botswana','exploratory'],['Madagascar','exploratory'],
+  ['Mozambique','exploratory'],['Angola','exploratory'],['Uzbekistan','exploratory'],['Mongolia','exploratory'],
+  ['Mexico','exploratory'],['Bolivia','exploratory'],['Brazil','exploratory'],['Ukraine','exploratory'],
+  ['Serbia','exploratory'],['Bosnia and Herz.','exploratory'],['Albania','exploratory'],
+  ['North Macedonia','exploratory'],['Macedonia','exploratory'],['Montenegro','exploratory'],['Kosovo','exploratory'],
+  // Planning
+  ['Turkmenistan','planning'],['Turkey','planning'],['Papua New Guinea','planning'],['Solomon Is.','planning'],
+  // Implementation
+  ['Zambia','implementation'],['Burundi','implementation'],['Dem. Rep. Congo','implementation'],['Malawi','implementation'],
+  ['Tanzania','implementation'],['India','implementation'],['Indonesia','implementation'],['Malaysia','implementation'],
+  ['Philippines','implementation'],['Thailand','implementation'],['Vietnam','implementation'],
+  ['Argentina','implementation'],['Peru','implementation'],['Chile','implementation'],['Kazakhstan','implementation'],
+  ['Côte d\'Ivoire','implementation'],['Guinea','implementation'],['Ghana','implementation'],['Sierra Leone','implementation'],
+];
+function applyBaseline(){
+  DATA={};
+  BASELINE.forEach(([c,ph])=>{const nm=resolveName(c); if(nm){const e=eff(nm);DATA[e]={phase:ph,region:regionFor(e)};}});
+  save();
+}
+
+// ── state ──
+let DATA={}; let selPhase='exploratory';
+let FEATURES=[], NAME2FEAT={}, proj, path, svg, vbH=620;
+try{const s=localStorage.getItem('mapauto'); if(s) DATA=JSON.parse(s);}catch(e){}
+function save(){try{localStorage.setItem('mapauto',JSON.stringify(DATA));}catch(e){}}
+
+svg=d3.select('#board');
+const NS='http://www.w3.org/2000/svg';
+const tip=document.getElementById('tip');
+
+// layers
+svg.append('rect').attr('id','bg').attr('width',1380).attr('height',620).attr('fill','#0B2545');
+const gMap=svg.append('g').attr('id','gmap');
+const gLabels=svg.append('g').attr('id','glabels');
+const gLegend=svg.append('g').attr('id','glegend');
+const gTable=svg.append('g').attr('id','gtable');
+// divider between map and table
+svg.append('line').attr('x1',995).attr('y1',20).attr('x2',995).attr('y2',600).attr('stroke','rgba(255,255,255,.12)');
+
+proj=d3.geoNaturalEarth1(); path=d3.geoPath(proj);
+
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+ .then(r=>r.json()).then(world=>{
+   FEATURES=topojson.feature(world,world.objects.countries).features
+            .filter(f=>f.properties.name!=='Antarctica');           // ① no Antarctica
+   proj.fitExtent([[30,52],[975,580]],{type:'FeatureCollection',features:FEATURES});
+   gMap.selectAll('path.country').data(FEATURES).enter().append('path')
+     .attr('class','country').attr('d',path)
+     .on('mousemove',(e,f)=>{const nm=eff(f.properties.name);const d=DATA[nm];
+        tip.style.display='block';tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-10)+'px';
+        tip.innerHTML=nm+(d?` — <b style="color:${PCOLOR[d.phase]}">${PLABEL[d.phase]}</b>`:'');})
+     .on('mouseleave',()=>tip.style.display='none')
+     .on('click',(e,f)=>{const nm=eff(f.properties.name);const cur=DATA[nm]?DATA[nm].phase:null;
+        const nx=CYCLE[cur]; if(nx) setCountry(nm,nx); else removeCountry(nm);});
+   // datalist (skip Taiwan; it maps to China) + name index
+   const dl=document.getElementById('clist');
+   const names=[...new Set(FEATURES.map(f=>f.properties.name).filter(n=>n!=='Taiwan'))].sort();
+   names.forEach(n=>{NAME2FEAT[norm(n)]=n;const o=document.createElement('option');o.value=n;dl.appendChild(o);});
+   NAME2FEAT[norm('Taiwan')]='China';
+   let seeded=false; try{seeded=localStorage.getItem('mapauto_seeded')==='1';}catch(e){}
+   if(!seeded){ applyBaseline(); try{localStorage.setItem('mapauto_seeded','1');}catch(e){} }   // seed baseline once
+   drawLegend(); paint(); renderTable(); renderManage();   // region labels live in the table, not on the map
+ }).catch(()=>{gTable.append('text').attr('x',1010).attr('y',60).attr('fill','#9fb4cb').attr('font-size',12).text('Base map failed to load (needs internet).');});
+
+// ── map ops ──
+function resolveName(input){return NAME2FEAT[norm(input)]||null;}
+function setCountry(name,phase,region){name=eff(name);
+  DATA[name]={phase, region: region || (DATA[name]&&DATA[name].region) || regionFor(name)};
+  save(); paint(); renderTable(); renderManage();
+}
+function removeCountry(name){delete DATA[eff(name)];save();paint();renderTable();renderManage();}
+function paint(){gMap.selectAll('path.country').attr('fill',f=>{const d=DATA[eff(f.properties.name)];return d?PCOLOR[d.phase]:NODATA;});}
+
+function drawLabels(){
+  gLabels.selectAll('*').remove();
+  MAP_LABELS.forEach(([txt,lx,ly,tlon,tlat])=>{
+    const tp=proj([tlon,tlat]); if(!tp) return;
+    // leader line from the label (margin) to the region
+    gLabels.append('line').attr('x1',lx).attr('y1',ly+3).attr('x2',tp[0]).attr('y2',tp[1])
+      .attr('stroke','#ffffff').attr('stroke-width',.7).attr('opacity',.5);
+    gLabels.append('circle').attr('cx',tp[0]).attr('cy',tp[1]).attr('r',1.5).attr('fill','#fff').attr('opacity',.7);
+    gLabels.append('text').attr('x',lx).attr('y',ly).attr('text-anchor','middle')
+      .attr('fill','#fff').attr('font-size',10.5).attr('font-weight',600).attr('opacity',.95).text(txt);
+  });
+}
+function drawLegend(){
+  const items=[['Exploratory Phase',PCOLOR.exploratory],['Planning Phase',PCOLOR.planning],
+               ['Implementation Phase',PCOLOR.impl||PCOLOR.implementation],['Not included',NODATA]];
+  let y=520;
+  items.forEach(([t,c])=>{gLegend.append('rect').attr('x',24).attr('y',y-10).attr('width',13).attr('height',13).attr('rx',3).attr('fill',c);
+    gLegend.append('text').attr('x',44).attr('y',y).attr('fill','#eaf2fb').attr('font-size',12).text(t);y+=22;});
+}
+
+// ── SVG summary table (solid colour blocks + arrow header, like the original) ──
+function txtFill(ph){return ph==='exploratory'?'#0B2545':'#ffffff';}  // dark on green, white on pink/blue
+function renderTable(){
+  gTable.selectAll('*').remove();
+  const X=1012, colW=112, gap=6, notch=10, lh=12.5, padY=6;
+  const cols=[X, X+colW+gap, X+2*(colW+gap)];
+  // ── arrow / chevron header ──
+  const hy=22, hh=24;
+  [['exploratory','Exploratory'],['planning','Planning'],['implementation','Implementation']].forEach(([ph,lab],i)=>{
+    const x=cols[i], w=colW;
+    const pts = i===0
+      ? `${x},${hy} ${x+w},${hy} ${x+w+notch},${hy+hh/2} ${x+w},${hy+hh} ${x},${hy+hh}`
+      : `${x},${hy} ${x+w},${hy} ${x+w+notch},${hy+hh/2} ${x+w},${hy+hh} ${x},${hy+hh} ${x+notch},${hy+hh/2}`;
+    gTable.append('polygon').attr('points',pts).attr('fill',PCOLOR[ph]);
+    gTable.append('text').attr('x',x+w/2+(i===0?0:notch/2)).attr('y',hy+hh/2+3.5).attr('text-anchor','middle')
+      .attr('fill',txtFill(ph)).attr('font-size',9.5).attr('font-weight',700).text(lab);
+  });
+  let y=hy+hh+18;
+  const names=Object.keys(DATA);
+  if(names.length){
+    const byReg={};
+    names.forEach(n=>{const{phase,region}=DATA[n];(byReg[region]=byReg[region]||{exploratory:[],planning:[],implementation:[]})[phase].push(n);});
+    const order=REGION_ORDER.filter(r=>byReg[r]).concat(Object.keys(byReg).filter(r=>!REGION_ORDER.includes(r)));
+    order.forEach(reg=>{
+      gTable.append('text').attr('x',X).attr('y',y).attr('fill','#9fb4cb').attr('font-size',8.5)
+        .attr('font-weight',700).attr('letter-spacing',.4).text(reg.toUpperCase());
+      y+=7;
+      const maxN=Math.max(g_(byReg,reg,'exploratory'),g_(byReg,reg,'planning'),g_(byReg,reg,'implementation'));
+      ['exploratory','planning','implementation'].forEach((ph,ci)=>{
+        const list=byReg[reg][ph].sort();
+        if(!list.length) return;
+        const bh=list.length*lh+padY*2;
+        gTable.append('rect').attr('x',cols[ci]).attr('y',y).attr('width',colW).attr('height',bh).attr('rx',5).attr('fill',PCOLOR[ph]);
+        list.forEach((n,ri)=>{
+          gTable.append('text').attr('x',cols[ci]+7).attr('y',y+padY+ri*lh+8.5)
+            .attr('fill',txtFill(ph)).attr('font-size',9).text(n);
+        });
+      });
+      y+=maxN*lh+padY*2+11;
+    });
+  } else {
+    gTable.append('text').attr('x',X).attr('y',y).attr('fill','#9fb4cb').attr('font-size',11).text('No countries yet.');
+    y+=20;
+  }
+  vbH=Math.max(620,y+20);
+  svg.attr('viewBox',`0 0 1380 ${vbH}`);
+  svg.select('#bg').attr('height',vbH);
+}
+function g_(byReg,reg,ph){return byReg[reg][ph].length;}
+
+function renderManage(){
+  const box=document.getElementById('manage');
+  const names=Object.keys(DATA).sort();
+  document.getElementById('ccount').textContent=names.length;
+  box.innerHTML=names.map(n=>`<div class="mitem"><span class="mdot" style="background:${PCOLOR[DATA[n].phase]}"></span>
+    <span>${n}</span><span style="color:var(--muted);font-size:11px">· ${DATA[n].region}</span>
+    <span class="x" data-n="${n.replace(/"/g,'&quot;')}">✕</span></div>`).join('')
+    || '<div style="color:var(--muted);font-size:12px;padding:8px 0">None yet.</div>';
+  box.querySelectorAll('.x').forEach(x=>x.addEventListener('click',()=>removeCountry(x.dataset.n)));
+}
+
+// ── UI wiring ──
+document.querySelectorAll('.pbtn').forEach(b=>b.addEventListener('click',()=>{
+  selPhase=b.dataset.p;document.querySelectorAll('.pbtn').forEach(x=>x.classList.toggle('on',x===b));}));
+document.querySelector('.pbtn[data-p=exploratory]').classList.add('on');
+const regionSel=document.getElementById('region');
+REGION_ORDER.forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;regionSel.appendChild(o);});
+const cinput=document.getElementById('cinput');
+cinput.addEventListener('input',()=>{const nm=resolveName(cinput.value);if(nm)regionSel.value=regionFor(nm);});
+document.getElementById('addbtn').addEventListener('click',()=>{
+  const nm=resolveName(cinput.value);
+  if(!nm){alert('Country not found on the map. Pick one from the suggestions.');return;}
+  setCountry(nm,selPhase,regionSel.value);cinput.value='';});
+document.getElementById('basebtn').addEventListener('click',()=>{if(confirm('Reset to the baseline scenario? This replaces the current map.')){applyBaseline();paint();renderTable();renderManage();}});
+document.getElementById('clrbtn').addEventListener('click',()=>{if(confirm('Clear all countries?')){DATA={};save();paint();renderTable();renderManage();}});
+document.getElementById('expbtn').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='map-phases.json';a.click();});
+document.getElementById('impbtn').addEventListener('click',()=>document.getElementById('impfile').click());
+document.getElementById('impfile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{try{DATA=JSON.parse(r.result);save();paint();renderTable();renderManage();}catch(err){alert('Invalid JSON');}};r.readAsText(f);});
+
+// ── PNG export (whole graphic: map + labels + legend + table) ──
+document.getElementById('pngbtn').addEventListener('click',()=>{
+  const node=document.getElementById('board');
+  const s=new XMLSerializer().serializeToString(node);
+  const img=new Image();const scale=2;
+  img.onload=()=>{const c=document.createElement('canvas');c.width=1380*scale;c.height=vbH*scale;
+    const ctx=c.getContext('2d');ctx.fillStyle='#0B2545';ctx.fillRect(0,0,c.width,c.height);
+    ctx.drawImage(img,0,0,c.width,c.height);
+    const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='phase-map.png';a.click();};
+  img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
+});
+
+window.MAP={set:setCountry,remove:removeCountry,data:()=>DATA,clear:()=>{DATA={};save();paint();renderTable();renderManage();}};
+</script>
+</body>
+</html>
