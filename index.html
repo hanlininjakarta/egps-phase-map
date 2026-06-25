@@ -102,8 +102,8 @@ function dispName(f){return SHORT[f.properties.iso]||stripp(f.properties.name);}
 const WINDOWS=['DECRECE','CMS','RISE','ASM','EITI'];
 function mk(o){const d={};for(const ph in o)o[ph].forEach(iso=>d[iso]={phase:ph});return d;}
 const BASELINES={
- RISE: mk({exploratory:['ZWE','NAM','BWA','MDG','MOZ','AGO','UZB','MNG','MEX','BOL','BRA','UKR','SRB','BIH','ALB','MKD','MNE','XKX'],
-           planning:['TKM','TUR','PNG','SLB'],
+ RISE: mk({exploratory:['ZWE','NAM','BWA','MDG','MOZ','UZB','MNG','MEX','UKR','SRB','BIH','ALB','MKD','MNE','XKX'],
+           planning:['TKM','TUR','PNG','SLB','ZAF','AGO','BRA','BOL','ECU','MRT','LBR','NGA','COG','GAB','EGY','JOR','PAK','MAR'],
            implementation:['ZMB','BDI','COD','MWI','TZA','IND','IDN','MYS','PHL','THA','VNM','ARG','PER','CHL','KAZ','CIV','GIN','GHA','SLE']}),
  DECRECE:{}, CMS:{}, ASM:{},
  EITI: mk({exploratory:['ECU','CHL','BOL'], planning:['PER','ARG','GAB','PNG','KAZ','UZB'], implementation:[]})
