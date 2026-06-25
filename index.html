@@ -145,7 +145,7 @@ function renderTable(){
 
 function updateSc(){document.querySelectorAll('.scb').forEach(b=>b.classList.toggle('on',b.dataset.s===ACTIVE));}
 document.querySelectorAll('.scb').forEach(b=>b.addEventListener('click',()=>{
-  save();ACTIVE=b.dataset.s;try{localStorage.setItem('ow_active',ACTIVE);}catch(e){}
+  ACTIVE=b.dataset.s;try{localStorage.setItem('ow_active',ACTIVE);}catch(e){}
   loadActive();repaint();renderTable();updateSc();}));
 updateSc();
 
