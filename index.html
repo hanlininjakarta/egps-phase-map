@@ -110,11 +110,15 @@ const BASELINES={
 };
 let ACTIVE='RISE';try{ACTIVE=localStorage.getItem('ow_active')||'RISE';}catch(e){}
 if(!WINDOWS.includes(ACTIVE))ACTIVE='RISE';
+let EDITED={};try{EDITED=JSON.parse(localStorage.getItem('ow_edited')||'{}');}catch(e){}
 function dkey(s){return 'ow_data_'+s;}
 let DATA={};
-function loadActive(){let raw=null;try{raw=localStorage.getItem(dkey(ACTIVE));}catch(e){}
-  DATA = raw!==null ? JSON.parse(raw) : JSON.parse(JSON.stringify(BASELINES[ACTIVE]||{}));}
-function save(){try{localStorage.setItem(dkey(ACTIVE),JSON.stringify(DATA));}catch(e){}}
+function loadActive(){
+  if(EDITED[ACTIVE]){let raw=null;try{raw=localStorage.getItem(dkey(ACTIVE));}catch(e){}
+    DATA = raw!==null ? JSON.parse(raw) : JSON.parse(JSON.stringify(BASELINES[ACTIVE]||{}));}
+  else { DATA = JSON.parse(JSON.stringify(BASELINES[ACTIVE]||{})); }
+}
+function save(){try{EDITED[ACTIVE]=1;localStorage.setItem('ow_edited',JSON.stringify(EDITED));localStorage.setItem(dkey(ACTIVE),JSON.stringify(DATA));}catch(e){}}
 loadActive();
 
 function norm(s){return (s||'').toLowerCase().replace(/[.,\-']/g,'').replace(/&/g,'and').replace(/\s+/g,' ').trim();}
@@ -161,7 +165,7 @@ document.querySelector('.pb[data-p=exploratory]').classList.add('on');
 document.getElementById('add').addEventListener('click',()=>{const f=byNorm[norm(document.getElementById('cinput').value)];if(!f){toast('Country not found.');return;}setC(f.properties.iso,selPhase);document.getElementById('cinput').value='';});
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 document.getElementById('clr').addEventListener('click',()=>{if(confirm('Clear '+ACTIVE+' window?')){DATA={};save();repaint();renderTable();}});
-document.getElementById('base').addEventListener('click',()=>{if(confirm('Reset '+ACTIVE+' to baseline?')){DATA=JSON.parse(JSON.stringify(BASELINES[ACTIVE]||{}));save();repaint();renderTable();}});
+document.getElementById('base').addEventListener('click',()=>{if(confirm('Reset '+ACTIVE+' to baseline?')){DATA=JSON.parse(JSON.stringify(BASELINES[ACTIVE]||{}));delete EDITED[ACTIVE];try{localStorage.setItem('ow_edited',JSON.stringify(EDITED));localStorage.removeItem(dkey(ACTIVE));}catch(e){}repaint();renderTable();}});
 document.getElementById('exp').addEventListener('click',()=>{const b=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='egps-phase-'+ACTIVE+'.json';a.click();});
 document.getElementById('imp').addEventListener('click',()=>document.getElementById('impf').click());
 document.getElementById('impf').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{DATA=JSON.parse(r.result);save();repaint();renderTable();}catch(x){toast('Bad JSON');}};r.readAsText(f);});
