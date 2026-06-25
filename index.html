@@ -105,7 +105,7 @@ const BASELINES={
  RISE: mk({exploratory:['ZWE','NAM','BWA','MDG','MOZ','UZB','MNG','MEX','UKR','SRB','BIH','ALB','MKD','MNE','XKX'],
            planning:['TKM','TUR','PNG','SLB','ZAF','AGO','BRA','BOL','ECU','MRT','LBR','NGA','COG','GAB','EGY','JOR','PAK','MAR'],
            implementation:['ZMB','BDI','COD','MWI','TZA','IND','IDN','MYS','PHL','THA','VNM','ARG','PER','CHL','KAZ','CIV','GIN','GHA','SLE']}),
- DECRECE:{}, CMS:{}, ASM:{},
+ DECRECE:{}, CMS:{}, ASM: mk({implementation:['GHA','PER','TZA']}),
  EITI: mk({exploratory:['ECU','CHL','BOL'], planning:['PER','ARG','GAB','PNG','KAZ','UZB'], implementation:[]})
 };
 let ACTIVE='RISE';try{ACTIVE=localStorage.getItem('ow_active')||'RISE';}catch(e){}
