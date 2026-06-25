@@ -82,11 +82,17 @@ const NODATA='#C2CBD4';
 const CYCLE={null:'exploratory',exploratory:'planning',planning:'implementation',implementation:null};
 const WESTAF=new Set(['CIV','GHA','GIN','SLE','LBR','SEN','MLI','NGA','BFA','BEN','TGO','NER','MRT','GNB','GMB','CPV']);
 const CENTRALASIA=new Set(['UZB','TKM','KAZ','KGZ','TJK']);
+const MENAAP='Middle East, North Africa, Afghanistan & Pakistan (MENAAP)';
 function regionOf(p){const r=p.region||'Other';const iso=p.iso;
-  if(r==='Sub-Saharan Africa')return WESTAF.has(iso)?'West Africa':'Southern & Eastern Africa';
-  if(r==='Europe & Central Asia')return CENTRALASIA.has(iso)?'Central Asia':'Europe';
-  return r;}
-const REGION_ORDER=['West Africa','Southern & Eastern Africa','Middle East & North Africa','Europe','Central Asia','South Asia','East Asia & Pacific','Latin America & Caribbean','North America','Other'];
+  if(r==='Sub-Saharan Africa')return 'Africa';
+  if(r==='East Asia & Pacific')return 'East Asia and Pacific';
+  if(r==='Europe & Central Asia')return 'Europe and Central Asia';
+  if(r==='Latin America & Caribbean')return 'Latin America and Caribbean';
+  if(r==='Middle East & North Africa')return MENAAP;
+  if(r==='South Asia')return (iso==='AFG'||iso==='PAK')?MENAAP:'South Asia';
+  return 'Other';}
+function regLabel(r){return r.indexOf('MENAAP')>=0?'MENAAP':r;}
+const REGION_ORDER=['Africa','East Asia and Pacific','Europe and Central Asia','Latin America and Caribbean',MENAAP,'South Asia','Other'];
 // WB short names (avoid overflow) — World Bank standard short forms
 const SHORT={COD:"Congo, Dem. Rep.",COG:"Congo, Rep.",EGY:"Egypt, Arab Rep.",IRN:"Iran, Islamic Rep.",KOR:"Korea, Rep.",PRK:"Korea, Dem. Rep.",VEN:"Venezuela, RB",YEM:"Yemen, Rep.",LAO:"Lao PDR",SYR:"Syrian Arab Rep.",BIH:"Bosnia and Herz.",CAF:"Central African Rep.",FSM:"Micronesia",VCT:"St. Vincent & Gren.",KNA:"St. Kitts & Nevis",STP:"São Tomé & Príncipe",PSE:"West Bank and Gaza",HKG:"Hong Kong SAR",MAC:"Macao SAR",USA:"United States",GMB:"Gambia, The",ARE:"United Arab Emirates",DOM:"Dominican Republic",GNQ:"Equatorial Guinea",TTO:"Trinidad & Tobago",ATG:"Antigua & Barbuda"};
 function stripp(n){return n.replace(/\s*\([^)]*\)/g,'').replace(/\/.*$/,'').trim();}
@@ -173,7 +179,7 @@ function buildPanel(){
   y+=32;
   const byReg=groupData();const order=REGION_ORDER.filter(r=>byReg[r]).concat(Object.keys(byReg).filter(r=>!REGION_ORDER.includes(r)));
   order.forEach(reg=>{
-    p.push(`<text x="${X}" y="${y}" font-family="Arial" font-size="8.5" font-weight="700" fill="#55707f">${esc(reg.toUpperCase())}</text>`);y+=6;
+    p.push(`<text x="${X}" y="${y}" font-family="Arial" font-size="8.5" font-weight="700" fill="#55707f">${esc(regLabel(reg).toUpperCase())}</text>`);y+=6;
     const g=byReg[reg];const maxN=Math.max(g.exploratory.length,g.planning.length,g.implementation.length);
     ['exploratory','planning','implementation'].forEach((ph,ci)=>{const list=g[ph].slice().sort();if(!list.length)return;
       const bh=list.length*lh+padY*2;p.push(`<rect x="${cols[ci]}" y="${y}" width="${colW}" height="${bh}" rx="5" fill="${PCOLOR[ph]}"/>`);
