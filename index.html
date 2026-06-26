@@ -175,9 +175,6 @@ function buildPanel(){
   const X=22,colW=108,gap=6,lh=12.5,padY=5;const cols=[X,X+colW+gap,X+2*(colW+gap)];
   let p=[],y=30;
   p.push(`<text x="${X}" y="${y}" font-family="Arial" font-size="15" font-weight="700" fill="#0B2545">Window: ${esc(ACTIVE)}</text>`);y+=24;
-  [['Exploratory',PCOLOR.exploratory],['Planning',PCOLOR.planning],['Implementation',PCOLOR.implementation],['Not included',NODATA]].forEach(([t,c])=>{
-    p.push(`<rect x="${X}" y="${y-10}" width="12" height="12" rx="2" fill="${c}"/><text x="${X+18}" y="${y}" font-family="Arial" font-size="11.5" fill="#1a2733">${t}</text>`);y+=18;});
-  y+=12;
   [['Exploratory',PCOLOR.exploratory],['Planning',PCOLOR.planning],['Implementation',PCOLOR.implementation]].forEach(([lab,c],i)=>{
     p.push(`<rect x="${cols[i]}" y="${y}" width="${colW}" height="20" rx="4" fill="${c}"/><text x="${cols[i]+colW/2}" y="${y+13.5}" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#06192f">${lab}</text>`);});
   y+=32;
@@ -191,20 +188,35 @@ function buildPanel(){
     y+=maxN*lh+padY*2+10;});
   return {svg:p.join(''),height:y+20};
 }
+function mapGroup(mapW){
+  const pr=d3.geoNaturalEarth1().fitWidth(mapW-16,GEO);let pa=d3.geoPath(pr);let bb=pa.bounds(GEO);
+  const t=pr.translate();pr.translate([t[0]-bb[0][0]+8,t[1]-bb[0][1]+8]);pa=d3.geoPath(pr);bb=pa.bounds(GEO);
+  const mapH=Math.ceil(bb[1][1])+8;
+  let m=`<rect width="${mapW}" height="${mapH}" fill="#ffffff"/>`;
+  FEATS.forEach(f=>{const d=DATA[f.properties.iso];m+=`<path class="c" d="${pa(f)}" fill="${d?PCOLOR[d.phase]:NODATA}"/>`;});
+  return {svg:m,h:mapH};
+}
+function dlPNG(svgStr,W2,H2){const img=new Image();const sc=2;
+  img.onload=()=>{const c=document.createElement('canvas');c.width=W2*sc;c.height=H2*sc;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+    const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='egps-phase-'+ACTIVE+'.png';a.click();};
+  img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svgStr)));}
 document.getElementById('png').addEventListener('click',()=>{
   const withLeg=document.getElementById('withlegend').checked;
-  const mapInner=document.getElementById('board').innerHTML;
-  const PAN=withLeg?372:0;let panel='',ph=0;
-  if(withLeg){const r=buildPanel();panel=r.svg;ph=r.height;}
-  const HH=Math.max(H,ph),TOT=W+PAN;
-  const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${TOT}" height="${HH}" viewBox="0 0 ${TOT} ${HH}">`+
-    `<style>path.country{stroke:#ffffff;stroke-width:0.5}</style>`+
-    `<rect width="${TOT}" height="${HH}" fill="#ffffff"/>`+
-    `<g>${mapInner}</g>`+(withLeg?`<g transform="translate(${W},0)">${panel}</g>`:'')+`</svg>`;
-  const img=new Image();const sc=2;
-  img.onload=()=>{const c=document.createElement('canvas');c.width=TOT*sc;c.height=HH*sc;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
-    const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='egps-phase-'+ACTIVE+'.png';a.click();};
-  img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
+  if(withLeg){
+    const panelW=380;const pan=buildPanel();const tableH=pan.height;
+    const mapW=1120;const mg=mapGroup(mapW);const legendH=52;
+    const HH=Math.max(mg.h+legendH,tableH);const TOT=mapW+panelW;
+    let leg='';let lx=24;const ly=mg.h+34;
+    [['Exploratory',PCOLOR.exploratory],['Planning',PCOLOR.planning],['Implementation',PCOLOR.implementation],['Not included',NODATA]].forEach(([t,c])=>{
+      leg+=`<rect x="${lx}" y="${ly-12}" width="14" height="14" rx="2" fill="${c}"/><text x="${lx+20}" y="${ly}" font-family="Arial" font-size="13" fill="#1a2733">${t}</text>`;
+      lx+=20+t.length*7+34;});
+    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${TOT}" height="${HH}" viewBox="0 0 ${TOT} ${HH}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${TOT}" height="${HH}" fill="#ffffff"/><g>${mg.svg}</g><g>${leg}</g><g transform="translate(${mapW},0)">${pan.svg}</g></svg>`;
+    dlPNG(s,TOT,HH);
+  } else {
+    const mapW=1400;const mg=mapGroup(mapW);
+    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${mapW}" height="${mg.h}" viewBox="0 0 ${mapW} ${mg.h}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${mapW}" height="${mg.h}" fill="#ffffff"/><g>${mg.svg}</g></svg>`;
+    dlPNG(s,mapW,mg.h);
+  }
 });
 window.addEventListener('resize',draw);
 draw();renderTable();
