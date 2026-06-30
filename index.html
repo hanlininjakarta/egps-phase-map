@@ -94,7 +94,7 @@ function regionOf(p){const r=p.region||'Other';const iso=p.iso;
 function regLabel(r){return r.indexOf('MENAAP')>=0?'MENAAP':r;}
 const REGION_ORDER=['Africa','East Asia and Pacific','Europe and Central Asia','Latin America and Caribbean',MENAAP,'South Asia','Other'];
 // WB short names (avoid overflow) — World Bank standard short forms
-const SHORT={COD:"Congo, Dem. Rep.",COG:"Congo, Rep.",EGY:"Egypt, Arab Rep.",IRN:"Iran, Islamic Rep.",KOR:"Korea, Rep.",PRK:"Korea, Dem. Rep.",VEN:"Venezuela, RB",YEM:"Yemen, Rep.",LAO:"Lao PDR",SYR:"Syrian Arab Rep.",BIH:"Bosnia and Herz.",CAF:"Central African Rep.",FSM:"Micronesia",VCT:"St. Vincent & Gren.",KNA:"St. Kitts & Nevis",STP:"São Tomé & Príncipe",PSE:"West Bank and Gaza",HKG:"Hong Kong SAR",MAC:"Macao SAR",USA:"United States",GMB:"Gambia, The",ARE:"United Arab Emirates",DOM:"Dominican Republic",GNQ:"Equatorial Guinea",TTO:"Trinidad & Tobago",ATG:"Antigua & Barbuda"};
+const SHORT={COD:"Congo, Dem. Rep.",COG:"Congo, Rep.",EGY:"Egypt, Arab Rep.",IRN:"Iran, Islamic Rep.",KOR:"Korea, Rep.",PRK:"Korea, Dem. Rep.",VEN:"Venezuela, RB",YEM:"Yemen, Rep.",LAO:"Lao PDR",SYR:"Syrian Arab Rep.",BIH:"Bosnia and Herz.",CAF:"Central African Rep.",FSM:"Micronesia",VCT:"St. Vincent & Gren.",KNA:"St. Kitts & Nevis",STP:"São Tomé & Príncipe",PSE:"West Bank and Gaza",HKG:"Hong Kong SAR",MAC:"Macao SAR",USA:"United States",GMB:"Gambia, The",ARE:"United Arab Emirates",DOM:"Dominican Republic",GNQ:"Equatorial Guinea",TTO:"Trinidad & Tobago",ATG:"Antigua & Barbuda",TUR:"Turkiye"};
 function stripp(n){return n.replace(/\s*\([^)]*\)/g,'').replace(/\/.*$/,'').trim();}
 function dispName(f){return SHORT[f.properties.iso]||stripp(f.properties.name);}
 
@@ -102,9 +102,9 @@ function dispName(f){return SHORT[f.properties.iso]||stripp(f.properties.name);}
 const WINDOWS=['DECRECE','CMS','RISE','ASM','EITI'];
 function mk(o){const d={};for(const ph in o)o[ph].forEach(iso=>d[iso]={phase:ph});return d;}
 const BASELINES={
- RISE: mk({exploratory:['ZWE','NAM','BWA','MDG','MOZ','UZB','MNG','MEX','UKR','SRB','BIH','ALB','MKD','MNE','XKX'],
-           planning:['TKM','TUR','PNG','SLB','AGO','BRA','ECU','MRT','LBR','NGA','COG','GAB','EGY','JOR','PAK','MAR'],
-           implementation:['ZMB','BDI','COD','MWI','TZA','IND','IDN','MYS','PHL','THA','VNM','ARG','PER','CHL','KAZ','CIV','GIN','GHA','SLE','ZAF','BOL','TLS','SGP','KHM','BRN','LAO']}),
+ RISE: mk({exploratory:['ZWE','NAM','BWA','MDG','MNG','MEX','EGY','JOR','PAK','MAR','CIV','GHA'],
+           planning:['TUR','PNG','SLB','BRA','ECU','MRT','COG','GAB','MOZ','UZB','GIN'],
+           implementation:['ZMB','BDI','COD','MWI','TZA','IND','IDN','MYS','PHL','THA','VNM','ARG','PER','CHL','KAZ','SLE','ZAF','BOL','TLS','SGP','KHM','BRN','LAO','AGO','NGA','LBR']}),
  DECRECE:{}, CMS:{}, ASM: mk({implementation:['GHA','PER','TZA']}),
  EITI: mk({exploratory:['ECU','CHL','BOL'], planning:['PER','ARG','GAB','PNG','KAZ','UZB'], implementation:[]})
 };
