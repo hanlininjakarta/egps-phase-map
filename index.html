@@ -216,8 +216,9 @@ document.getElementById('png').addEventListener('click',()=>{
       leg+=`<rect x="${lx}" y="${ly-22}" width="26" height="26" rx="3" fill="${c}"/><text x="${lx+36}" y="${ly}" font-family="Arial" font-size="20" fill="#1a2733">${t}</text>`;
       lx+=36+t.length*11.5+46;});
     const legendH=74;const panY=mg.h+legendH;
-    const pan=buildPanel(mapW);const TOT=mapW;const HH=panY+pan.height;
-    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${TOT}" height="${HH}" viewBox="0 0 ${TOT} ${HH}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${TOT}" height="${HH}" fill="#ffffff"/><g>${mg.svg}</g><g>${leg}</g><g transform="translate(0,${panY})">${pan.svg}</g></svg>`;
+    const tableW=640;const offX=Math.round((mapW-tableW)/2);
+    const pan=buildPanel(tableW);const TOT=mapW;const HH=panY+pan.height;
+    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${TOT}" height="${HH}" viewBox="0 0 ${TOT} ${HH}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${TOT}" height="${HH}" fill="#ffffff"/><g>${mg.svg}</g><g>${leg}</g><g transform="translate(${offX},${panY})">${pan.svg}</g></svg>`;
     dlPNG(s,TOT,HH);
   } else {
     const mapW=1400;const mg=mapGroup(mapW);
