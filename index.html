@@ -171,28 +171,29 @@ document.getElementById('imp').addEventListener('click',()=>document.getElementB
 document.getElementById('impf').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{DATA=JSON.parse(r.result);save();repaint();renderTable();}catch(x){toast('Bad JSON');}};r.readAsText(f);});
 
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
-function buildPanel(){
-  const X=22,colW=108,gap=6,lh=12.5,padY=5;const cols=[X,X+colW+gap,X+2*(colW+gap)];const barW=colW*3+gap*2;
-  let p=[],y=30;
-  p.push(`<text x="${X}" y="${y}" font-family="Arial" font-size="15" font-weight="700" fill="#0B2545">Window: ${esc(ACTIVE)}</text>`);y+=22;
+function buildPanel(totalW){
+  const X=26,gap=12;const avail=totalW-2*X;const colW=(avail-2*gap)/3;const lh=15,padY=7;
+  const cols=[X,X+colW+gap,X+2*(colW+gap)];const barW=avail;
+  let p=[],y=34;
+  p.push(`<text x="${X}" y="${y}" font-family="Arial" font-size="20" font-weight="700" fill="#0B2545">Window: ${esc(ACTIVE)}</text>`);y+=30;
   [['Exploratory',PCOLOR.exploratory],['Planning',PCOLOR.planning],['Implementation',PCOLOR.implementation]].forEach(([lab,c],i)=>{
-    p.push(`<rect x="${cols[i]}" y="${y}" width="${colW}" height="20" rx="4" fill="${c}"/><text x="${cols[i]+colW/2}" y="${y+13.5}" text-anchor="middle" font-family="Arial" font-size="9" font-weight="700" fill="#06192f">${lab}</text>`);});
-  y+=30;
+    p.push(`<rect x="${cols[i]}" y="${y}" width="${colW}" height="26" rx="5" fill="${c}"/><text x="${cols[i]+colW/2}" y="${y+17.5}" text-anchor="middle" font-family="Arial" font-size="12" font-weight="700" fill="#06192f">${lab}</text>`);});
+  y+=38;
   const byReg=groupData();const order=REGION_ORDER.filter(r=>byReg[r]).concat(Object.keys(byReg).filter(r=>!REGION_ORDER.includes(r)));
   order.forEach(reg=>{
-    p.push(`<rect x="${X}" y="${y}" width="${barW}" height="17" rx="3" fill="#0B2545"/>`);
-    p.push(`<text x="${X+8}" y="${y+12.2}" font-family="Arial" font-size="9" font-weight="700" fill="#ffffff" letter-spacing="0.4">${esc(regLabel(reg).toUpperCase())}</text>`);
-    y+=21;
+    p.push(`<rect x="${X}" y="${y}" width="${barW}" height="22" rx="4" fill="#0B2545"/>`);
+    p.push(`<text x="${X+10}" y="${y+15.5}" font-family="Arial" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="0.4">${esc(regLabel(reg).toUpperCase())}</text>`);
+    y+=27;
     const g=byReg[reg];const maxN=Math.max(g.exploratory.length,g.planning.length,g.implementation.length,1);
     const rowH=maxN*lh+padY*2;
     ['exploratory','planning','implementation'].forEach((ph,ci)=>{
-      p.push(`<rect x="${cols[ci]}" y="${y}" width="${colW}" height="${rowH}" rx="5" fill="${PCOLOR[ph]}"/>`);
+      p.push(`<rect x="${cols[ci]}" y="${y}" width="${colW}" height="${rowH}" rx="6" fill="${PCOLOR[ph]}"/>`);
       g[ph].slice().sort().forEach((n,ri)=>{
-        p.push(`<text x="${cols[ci]+6}" y="${y+padY+ri*lh+8.5}" font-family="Arial" font-size="9" fill="#06192f">${esc(n)}</text>`);});
+        p.push(`<text x="${cols[ci]+10}" y="${y+padY+ri*lh+10.5}" font-family="Arial" font-size="11" fill="#06192f">${esc(n)}</text>`);});
     });
-    y+=rowH+9;
+    y+=rowH+11;
   });
-  return {svg:p.join(''),height:y+12};
+  return {svg:p.join(''),height:y+14};
 }
 function mapGroup(mapW){
   const pr=d3.geoNaturalEarth1().fitWidth(mapW-16,GEO);let pa=d3.geoPath(pr);let bb=pa.bounds(GEO);
@@ -209,15 +210,14 @@ function dlPNG(svgStr,W2,H2){const img=new Image();const sc=2;
 document.getElementById('png').addEventListener('click',()=>{
   const withLeg=document.getElementById('withlegend').checked;
   if(withLeg){
-    const panelW=380;const pan=buildPanel();const tableH=pan.height;
-    const mapW=1120;const mg=mapGroup(mapW);const legendH=52;
-    const leftH=mg.h+legendH;const HH=Math.max(leftH,tableH);const TOT=mapW+panelW;
-    const offY=Math.max(0,(HH-leftH)/2);
-    let leg='';let lx=24;const ly=mg.h+34;
+    const mapW=1000;const mg=mapGroup(mapW);
+    let leg='';let lx=28;const ly=mg.h+44;
     [['Exploratory',PCOLOR.exploratory],['Planning',PCOLOR.planning],['Implementation',PCOLOR.implementation],['Not included',NODATA]].forEach(([t,c])=>{
-      leg+=`<rect x="${lx}" y="${ly-12}" width="14" height="14" rx="2" fill="${c}"/><text x="${lx+20}" y="${ly}" font-family="Arial" font-size="13" fill="#1a2733">${t}</text>`;
-      lx+=20+t.length*7+34;});
-    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${TOT}" height="${HH}" viewBox="0 0 ${TOT} ${HH}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${TOT}" height="${HH}" fill="#ffffff"/><g transform="translate(0,${offY})"><g>${mg.svg}</g><g>${leg}</g></g><g transform="translate(${mapW},0)">${pan.svg}</g></svg>`;
+      leg+=`<rect x="${lx}" y="${ly-22}" width="26" height="26" rx="3" fill="${c}"/><text x="${lx+36}" y="${ly}" font-family="Arial" font-size="20" fill="#1a2733">${t}</text>`;
+      lx+=36+t.length*11.5+46;});
+    const legendH=74;const panY=mg.h+legendH;
+    const pan=buildPanel(mapW);const TOT=mapW;const HH=panY+pan.height;
+    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${TOT}" height="${HH}" viewBox="0 0 ${TOT} ${HH}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${TOT}" height="${HH}" fill="#ffffff"/><g>${mg.svg}</g><g>${leg}</g><g transform="translate(0,${panY})">${pan.svg}</g></svg>`;
     dlPNG(s,TOT,HH);
   } else {
     const mapW=1400;const mg=mapGroup(mapW);
