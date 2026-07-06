@@ -12,7 +12,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#06192f;color:var(--
 .country{stroke:#ffffff;stroke-width:.5px;cursor:pointer;}
 .country:hover{stroke:#0B2545;stroke-width:1.3px;}
 .note{position:absolute;left:14px;top:11px;font-size:11.5px;color:#7a92a4;}
-.ibrd{position:absolute;left:14px;bottom:10px;font-size:10px;color:#9aa7b4;line-height:1.3;}
+.ibrd{position:absolute;right:14px;bottom:10px;text-align:right;font-size:10px;color:#9aa7b4;line-height:1.3;}
+.mleg{position:absolute;left:14px;bottom:12px;background:rgba(255,255,255,0.92);border:1px solid #e2e6ea;border-radius:8px;padding:8px 11px;display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:#1a2733;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+.mleg .r{display:flex;align-items:center;gap:7px;}
+.mleg .s{width:13px;height:13px;border-radius:3px;display:inline-block;}
+.mleg .t{font-weight:700;font-size:10px;letter-spacing:.6px;color:#6b7681;text-transform:uppercase;margin-bottom:1px;}
 #tip{position:fixed;display:none;pointer-events:none;background:#06192f;border:1px solid var(--rule);border-radius:7px;padding:6px 10px;font-size:12.5px;z-index:50;white-space:nowrap;}
 .panel{background:var(--panel);border-left:1px solid var(--rule);display:flex;flex-direction:column;overflow-y:auto;}
 .phead{padding:13px 16px;border-bottom:1px solid var(--rule);}.phead h1{font-size:14px;}.phead p{font-size:11px;color:var(--muted);margin-top:3px;}
@@ -45,6 +49,12 @@ input,select{width:100%;background:#0a2542;border:1px solid var(--rule);border-r
  <div class="mapwrap">
    <svg id="board" preserveAspectRatio="xMidYMid meet"></svg>
    <div class="ibrd">Source: World Bank Official Boundaries (Admin 0)<br>WGS84 · ISO 3166</div>
+   <div class="mleg">
+     <div class="t">EGPS Phase</div>
+     <div class="r"><span class="s" style="background:var(--explore)"></span>Exploratory</div>
+     <div class="r"><span class="s" style="background:var(--plan)"></span>Planning</div>
+     <div class="r"><span class="s" style="background:var(--impl)"></span>Implementation</div>
+   </div>
  </div>
  <div class="panel">
    <div class="phead"><h1>EGPS Phase Map</h1></div>
@@ -63,10 +73,9 @@ input,select{width:100%;background:#0a2542;border:1px solid var(--rule);border-r
      <div class="r"><span class="s" style="background:var(--impl)"></span>Implementation</div>
      <div class="r"><span class="s" style="background:var(--nodata)"></span>Not included</div></div></div>
    <div class="sec"><h2>Data</h2><div class="tools">
-     <button class="btn ghost" id="png">Download PNG</button><button class="btn ghost" id="exp">Export JSON</button>
-     <button class="btn ghost" id="imp">Import JSON</button><button class="btn ghost" id="base">Reset baseline</button>
-     <button class="btn ghost" id="clr" style="grid-column:1/3">Clear window</button></div>
-     <label class="chk"><input type="checkbox" id="withlegend" checked> Include legend &amp; table in PNG</label>
+     <button class="btn ghost" id="pngMap">Download Map</button><button class="btn ghost" id="pngLeg">Download Legend</button>
+     <button class="btn ghost" id="exp">Export JSON</button><button class="btn ghost" id="imp">Import JSON</button>
+     <button class="btn ghost" id="base">Reset baseline</button><button class="btn ghost" id="clr">Clear window</button></div>
      <input type="file" id="impf" accept="application/json" style="display:none"></div>
    <div class="tbl"><h2 style="font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">Region × Phase</h2>
      <div class="ah"><div class="a1">Exploratory ▸</div><div class="a2">Planning ▸</div><div class="a3">Implementation</div></div>
@@ -202,28 +211,38 @@ function mapGroup(mapW){
   FEATS.forEach(f=>{const d=DATA[f.properties.iso];m+=`<path class="c" d="${pa(f)}" fill="${d?PCOLOR[d.phase]:NODATA}"/>`;});
   return {svg:m,h:mapH};
 }
-function dlPNG(svgStr,W2,H2){const img=new Image();const sc=2;
+function dlPNG(svgStr,W2,H2,suffix){const img=new Image();const sc=2;
   img.onload=()=>{const c=document.createElement('canvas');c.width=W2*sc;c.height=H2*sc;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
-    const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='egps-phase-'+ACTIVE+'.png';a.click();};
+    const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='egps-phase-'+ACTIVE+(suffix?'-'+suffix:'')+'.png';a.click();};
   img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svgStr)));}
-document.getElementById('png').addEventListener('click',()=>{
-  const withLeg=document.getElementById('withlegend').checked;
-  if(withLeg){
-    const panelW=620;const pan=buildPanel();const tableH=pan.height;
-    const mapW=1120;const mg=mapGroup(mapW);const legendH=64;
-    const leftH=mg.h+legendH;const HH=Math.max(leftH,tableH);const TOT=mapW+panelW;
-    const offY=Math.max(0,(HH-leftH)/2);
-    let leg='';let lx=24;const ly=mg.h+40;
-    [['Exploratory',PCOLOR.exploratory],['Planning',PCOLOR.planning],['Implementation',PCOLOR.implementation],['Not included',NODATA]].forEach(([t,c])=>{
-      leg+=`<rect x="${lx}" y="${ly-20}" width="22" height="22" rx="3" fill="${c}"/><text x="${lx+30}" y="${ly}" font-family="Arial" font-size="18" fill="#1a2733">${t}</text>`;
-      lx+=30+t.length*10+40;});
-    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${TOT}" height="${HH}" viewBox="0 0 ${TOT} ${HH}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${TOT}" height="${HH}" fill="#ffffff"/><g transform="translate(0,${offY})"><g>${mg.svg}</g><g>${leg}</g></g><g transform="translate(${mapW},0)">${pan.svg}</g></svg>`;
-    dlPNG(s,TOT,HH);
-  } else {
-    const mapW=1400;const mg=mapGroup(mapW);
-    const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${mapW}" height="${mg.h}" viewBox="0 0 ${mapW} ${mg.h}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${mapW}" height="${mg.h}" fill="#ffffff"/><g>${mg.svg}</g></svg>`;
-    dlPNG(s,mapW,mg.h);
-  }
+// 三色阶段图例（烘焙进下载的地图）
+function phaseLegendSVG(){
+  const items=[['Exploratory',PCOLOR.exploratory],['Planning',PCOLOR.planning],['Implementation',PCOLOR.implementation]];
+  const sw=28,fs=24,rowH=42,padX=18,padTop=16,titleFs=18,titleH=28,bw=340;
+  const bh=padTop+titleH+items.length*rowH;
+  let g=`<rect x="0" y="0" width="${bw}" height="${bh}" rx="10" fill="#ffffff" stroke="#dfe4e9" stroke-width="1.5"/>`;
+  g+=`<text x="${padX}" y="${padTop+14}" font-family="Arial" font-size="${titleFs}" font-weight="700" fill="#6b7681" letter-spacing="1">EGPS PHASE</text>`;
+  let ry=padTop+titleH+rowH/2;
+  items.forEach(function(it){const t=it[0],c=it[1];
+    g+=`<rect x="${padX}" y="${Math.round(ry-sw/2)}" width="${sw}" height="${sw}" rx="5" fill="${c}"/>`;
+    g+=`<text x="${padX+sw+14}" y="${Math.round(ry+fs*0.34)}" font-family="Arial" font-size="${fs}" fill="#1a2733">${t}</text>`;
+    ry+=rowH;});
+  return {svg:g,w:bw,h:bh};
+}
+// 1) 地图：单独下载，大尺寸高清，左下角自带三色阶段图例
+document.getElementById('pngMap').addEventListener('click',()=>{
+  const mapW=2000;const mg=mapGroup(mapW);
+  const lg=phaseLegendSVG();const lx=24,ly=mg.h-lg.h-24;
+  const leg=`<g transform="translate(${lx},${ly})">${lg.svg}</g>`;
+  const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${mapW}" height="${mg.h}" viewBox="0 0 ${mapW} ${mg.h}"><style>path.c{stroke:#ffffff;stroke-width:0.5}</style><rect width="${mapW}" height="${mg.h}" fill="#ffffff"/><g>${mg.svg}</g>${leg}</svg>`;
+  dlPNG(s,mapW,mg.h,'map');toast('Map downloaded');
+});
+// 2) 图例：单独下载 = 按地区分组的国家 phase 名单
+document.getElementById('pngLeg').addEventListener('click',()=>{
+  if(!Object.keys(DATA).length){toast('No countries to list yet');return;}
+  const pan=buildPanel();const W=608;const H=pan.height;
+  const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#ffffff"/>${pan.svg}</svg>`;
+  dlPNG(s,W,H,'legend');toast('Country list downloaded');
 });
 window.addEventListener('resize',draw);
 draw();renderTable();
